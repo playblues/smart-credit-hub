@@ -1,0 +1,381 @@
+openapi: 3.0.3
+info:
+  title: Alfa Credit Pipeline API
+  version: 1.2.0
+  description: |
+    Сквозной API цифрового кредитного конвейера для малого бизнеса.
+    Единственный источник правды для статусов и полей. Фронт генерирует типы (openapi-typescript), бэк сверяется со спекой.
+    Недопустимый переход статуса всегда возвращает 409 (ErrorResponse, code=CONFLICT_STATE).
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  parameters:
+    ApplicationId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Нет или неверный токен
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    Forbidden:
+      description: Роль не имеет доступа к ресурсу (например, клиент в /bank/*) или чужая заявка
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    NotFound:
+      description: Не найдено
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    Conflict:
+      description: Недопустимый переход статуса
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    BadRequest:
+      description: Ошибка валидации
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } }
+    ApplicationOk:
+      description: Актуальное состояние заявки
+      content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+
+  schemas:
+    ApplicationStatus:
+      type: string
+      description: |
+        SUBMITTED -> ENRICHMENT -> SCORING -> {AUTO_APPROVED | COUNTER_OFFERED | MANUAL_REVIEW | REJECTED}.
+        COUNTER_OFFERED -> APPROVED (accept) | CLIENT_DECLINED (reject).
+        MANUAL_REVIEW <-> WAITING_DOCUMENTS; из MANUAL_REVIEW -> APPROVED | COUNTER_OFFERED | REJECTED.
+        AUTO_APPROVED | APPROVED -> SIGNED -> DISBURSED.
+      enum:
+        - SUBMITTED
+        - ENRICHMENT
+        - SCORING
+        - AUTO_APPROVED
+        - COUNTER_OFFERED
+        - CLIENT_DECLINED
+        - MANUAL_REVIEW
+        - WAITING_DOCUMENTS
+        - APPROVED
+        - REJECTED
+        - SIGNED
+        - DISBURSED
+
+    ProductType: { type: string, enum: [WORKING_CAPITAL, OVERDRAFT] }
+    RiskZone: { type: string, enum: [GREEN, YELLOW, GREY, RED] }
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, example: CONFLICT_STATE }
+        message: { type: string, example: Действие недопустимо для текущего статуса заявки }
+        details: { type: string, nullable: true }
+
+    CompanySnapshot:
+      type: object
+      description: Данные ФНС и БКИ на момент заявки (не меняются задним числом)
+      properties:
+        inn: { type: string }
+        name: { type: string }
+        annual_revenue: { type: number }
+        business_age_months: { type: integer }
+        is_liquidating: { type: boolean }
+        bki_active_loans: { type: integer }
+        bki_max_overdue_days: { type: integer }
+        bki_had_past_delinquency: { type: boolean }
+
+    AuditLogEntry:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        from_status: { $ref: '#/components/schemas/ApplicationStatus' }
+        to_status: { $ref: '#/components/schemas/ApplicationStatus' }
+        actor_role: { type: string, enum: [SYSTEM, CLIENT, UNDERWRITER] }
+        comment: { type: string, nullable: true }
+
+    Document:
+      type: object
+      required: [id, name, document_type, uploaded_at, size_bytes]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: buh_balance_2025.pdf }
+        document_type: { $ref: '#/components/schemas/DocumentType' }
+        uploaded_at: { type: string, format: date-time }
+        size_bytes: { type: integer, example: 1048576 }
+
+    DocumentType:
+      type: string
+      enum: [FINANCIAL_STATEMENT, TAX_DECLARATION, BANK_STATEMENT, LEASE_CONTRACT, OTHER]
+
+    CounterOffer:
+      type: object
+      nullable: true
+      properties:
+        amount: { type: number }
+        term_months: { type: integer }
+        rate: { type: number }
+        pti: { type: number, description: Долговая нагрузка (годовые платежи / годовая выручка) }
+        reason: { type: string }
+
+    ScoringResult:
+      type: object
+      nullable: true
+      properties:
+        z_score: { type: number }
+        pd: { type: number, description: Вероятность дефолта 0..1 }
+        score: { type: integer, description: round(1000 * (1 - pd)) }
+        risk_zone: { $ref: '#/components/schemas/RiskZone' }
+        stop_factor: { type: string, nullable: true }
+        factors_client: { type: array, items: { type: string } }
+        factors_bank: { type: array, items: { type: string } }
+        model_version: { type: string, example: 1.2.0 }
+
+    Application:
+      type: object
+      required: [id, inn, status, product_type, requested_amount, requested_term_months, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        inn: { type: string }
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        product_type: { $ref: '#/components/schemas/ProductType' }
+        purpose: { type: string, nullable: true }
+        requested_amount: { type: number }
+        requested_term_months: { type: integer }
+        approved_amount: { type: number, nullable: true }
+        approved_term_months: { type: integer, nullable: true }
+        interest_rate: { type: number, nullable: true }
+        counter_offer: { $ref: '#/components/schemas/CounterOffer' }
+        scoring_result: { $ref: '#/components/schemas/ScoringResult' }
+        company_snapshot: { $ref: '#/components/schemas/CompanySnapshot' }
+        underwriter_comment: { type: string, nullable: true, description: Что запросил или решил андеррайтер }
+        reject_reason_client: { type: string, nullable: true }
+        documents: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        status_history: { type: array, items: { $ref: '#/components/schemas/AuditLogEntry' } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+paths:
+  /auth/login:
+    post:
+      summary: Вход (клиент или андеррайтер)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login, password]
+              properties:
+                login: { type: string, example: client_alfa }
+                password: { type: string, example: demo123 }
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, role]
+                properties:
+                  token: { type: string }
+                  role: { type: string, enum: [CLIENT, UNDERWRITER] }
+                  inn: { type: string, nullable: true }
+                  display_name: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { description: Слишком много попыток входа }
+
+  /mock/fns/{inn}:
+    get:
+      summary: Мок ФНС «Прозрачный бизнес» (автозаполнение по ИНН)
+      parameters:
+        - { name: inn, in: path, required: true, schema: { type: string, minLength: 10, maxLength: 12 } }
+      responses:
+        '200':
+          description: Данные компании
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inn: { type: string }
+                  name: { type: string }
+                  okved: { type: string, example: "49.41" }
+                  annual_revenue: { type: number }
+                  business_age_months: { type: integer }
+                  is_liquidating: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /mock/bki/{inn}:
+    get:
+      summary: Мок БКИ (кредитная история)
+      parameters:
+        - { name: inn, in: path, required: true, schema: { type: string, minLength: 10, maxLength: 12 } }
+      responses:
+        '200':
+          description: Кредитная история
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inn: { type: string }
+                  active_loans_count: { type: integer }
+                  max_overdue_days: { type: integer }
+                  had_past_delinquency: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /applications:
+    get:
+      summary: Заявки текущего клиента
+      responses:
+        '200':
+          description: Список
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Application' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Подать заявку (запускает конвейер SUBMITTED -> ... в фоне)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inn, product_type, requested_amount, requested_term_months]
+              properties:
+                inn: { type: string, example: "7701000001" }
+                product_type: { $ref: '#/components/schemas/ProductType' }
+                requested_amount: { type: number, minimum: 1, example: 3000000 }
+                requested_term_months: { type: integer, minimum: 1, example: 12 }
+                purpose: { type: string, example: Пополнение оборотных средств }
+      responses:
+        '201':
+          description: Заявка создана, статус SUBMITTED
+          content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /applications/{id}:
+    get:
+      summary: Заявка с историей статусов
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /applications/{id}/counter-offer/accept:
+    post:
+      summary: Принять контр-оффер (COUNTER_OFFERED -> APPROVED)
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /applications/{id}/counter-offer/reject:
+    post:
+      summary: Отклонить контр-оффер (COUNTER_OFFERED -> CLIENT_DECLINED)
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /applications/{id}/documents:
+    post:
+      summary: Загрузить запрошенный документ (WAITING_DOCUMENTS -> MANUAL_REVIEW). До 10 МБ, PDF/PNG/JPEG
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, document_type]
+              properties:
+                document_type: { $ref: '#/components/schemas/DocumentType' }
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Документ сохранён
+          content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /applications/{id}/sign:
+    post:
+      summary: Подписать договор (AUTO_APPROVED | APPROVED -> SIGNED, затем фоном -> DISBURSED через ~2 с)
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /bank/applications:
+    get:
+      summary: Очередь заявок андеррайтера (только роль UNDERWRITER)
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/ApplicationStatus' } }
+        - { name: risk_zone, in: query, required: false, schema: { $ref: '#/components/schemas/RiskZone' } }
+      responses:
+        '200':
+          description: Список
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Application' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /bank/applications/{id}:
+    get:
+      summary: Карточка заявки для андеррайтера (ФНС, БКИ, скоринг, факторы, документы)
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /bank/applications/{id}/decision:
+    post:
+      summary: |
+        Решение андеррайтера. Допустимо из MANUAL_REVIEW:
+        APPROVE -> APPROVED; REJECT -> REJECTED; COUNTER_OFFER -> COUNTER_OFFERED; REQUEST_DOCUMENTS -> WAITING_DOCUMENTS.
+      parameters: [ { $ref: '#/components/parameters/ApplicationId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [APPROVE, REJECT, REQUEST_DOCUMENTS, COUNTER_OFFER] }
+                comment: { type: string, description: Обязателен для REJECT и REQUEST_DOCUMENTS, example: Просим прикрепить выписку по расчётному счёту }
+                counter_offer_amount: { type: number, nullable: true, description: Обязателен для COUNTER_OFFER }
+                counter_offer_term_months: { type: integer, nullable: true, description: Обязателен для COUNTER_OFFER }
+      responses:
+        '200': { $ref: '#/components/responses/ApplicationOk' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }

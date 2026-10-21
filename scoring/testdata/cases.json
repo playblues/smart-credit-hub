@@ -1,0 +1,163 @@
+[
+  {
+    "case_id": "CASE_1_GREEN",
+    "description": "Зрелый бизнес, выручка 50 млн при запросе 3 млн, чистая БКИ. Автоодобрение.",
+    "company": {
+      "inn": "7701000001",
+      "name": "ООО «Альфа Логистика»",
+      "annual_revenue": 50000000,
+      "business_age_months": 48,
+      "is_liquidating": false
+    },
+    "bki": {
+      "active_loans_count": 1,
+      "max_overdue_days": 0,
+      "had_past_delinquency": false
+    },
+    "request": {
+      "product_type": "WORKING_CAPITAL",
+      "requested_amount": 3000000,
+      "requested_term_months": 12,
+      "purpose": "Закупка запчастей для автопарка"
+    },
+    "expected_result": {
+      "z_score": -5.2,
+      "pd": 0.0055,
+      "score": 995,
+      "risk_zone": "GREEN",
+      "status": "AUTO_APPROVED",
+      "approved_amount": 3000000,
+      "approved_term_months": 12,
+      "interest_rate": 0.185
+    }
+  },
+  {
+    "case_id": "CASE_2_YELLOW",
+    "description": "Запрос 5 млн при обороте 8 млн, PTI 37% > 35%. Контр-оффер на 3.25 млн.",
+    "company": {
+      "inn": "7701000002",
+      "name": "ИП Смирнов Алексей Петрович",
+      "annual_revenue": 8000000,
+      "business_age_months": 18,
+      "is_liquidating": false
+    },
+    "bki": {
+      "active_loans_count": 2,
+      "max_overdue_days": 12,
+      "had_past_delinquency": true
+    },
+    "request": {
+      "product_type": "WORKING_CAPITAL",
+      "requested_amount": 5000000,
+      "requested_term_months": 24,
+      "purpose": "Расширение торговой точки"
+    },
+    "expected_result": {
+      "z_score": -2.515,
+      "pd": 0.0748,
+      "score": 925,
+      "risk_zone": "YELLOW",
+      "status": "COUNTER_OFFERED",
+      "counter_offer": {
+        "amount": 3250000,
+        "term_months": 24,
+        "rate": 0.205,
+        "pti": 0.2493,
+        "reason": "Банк предлагает меньшую сумму, чтобы ежемесячные платежи были посильны для вашего бизнеса"
+      }
+    }
+  },
+  {
+    "case_id": "CASE_3_GREY",
+    "description": "Молодой бизнес (8 мес), 4 кредита. Серая зона: АРМ андеррайтера, запрос баланса.",
+    "company": {
+      "inn": "7701000003",
+      "name": "ООО «ТехноСтарт»",
+      "annual_revenue": 12000000,
+      "business_age_months": 8,
+      "is_liquidating": false
+    },
+    "bki": {
+      "active_loans_count": 4,
+      "max_overdue_days": 25,
+      "had_past_delinquency": true
+    },
+    "request": {
+      "product_type": "OVERDRAFT",
+      "requested_amount": 2500000,
+      "requested_term_months": 12,
+      "purpose": "Кассовый разрыв"
+    },
+    "expected_result": {
+      "z_score": -1.9,
+      "pd": 0.1301,
+      "score": 870,
+      "risk_zone": "GREY",
+      "status": "MANUAL_REVIEW"
+    }
+  },
+  {
+    "case_id": "CASE_4_RED",
+    "description": "Просрочка 115 дней в БКИ. Стоп-фактор, отказ.",
+    "company": {
+      "inn": "7701000004",
+      "name": "ООО «Негатив Трейд»",
+      "annual_revenue": 20000000,
+      "business_age_months": 36,
+      "is_liquidating": false
+    },
+    "bki": {
+      "active_loans_count": 4,
+      "max_overdue_days": 115,
+      "had_past_delinquency": true
+    },
+    "request": {
+      "product_type": "WORKING_CAPITAL",
+      "requested_amount": 4000000,
+      "requested_term_months": 12,
+      "purpose": "Пополнение оборотных средств"
+    },
+    "expected_result": {
+      "risk_zone": "RED",
+      "status": "REJECTED",
+      "stop_factor": "bki_overdue_90",
+      "reason_client": "Наличие просроченной задолженности свыше 90 дней в кредитной истории"
+    }
+  },
+  {
+    "case_id": "CASE_5_LIMIT",
+    "description": "Хороший заёмщик просит выше лимита продукта (15 млн при лимите 10 млн). Контр-оффер на лимит.",
+    "company": {
+      "inn": "7701000005",
+      "name": "ООО «Мегастрой»",
+      "annual_revenue": 200000000,
+      "business_age_months": 60,
+      "is_liquidating": false
+    },
+    "bki": {
+      "active_loans_count": 0,
+      "max_overdue_days": 0,
+      "had_past_delinquency": false
+    },
+    "request": {
+      "product_type": "WORKING_CAPITAL",
+      "requested_amount": 15000000,
+      "requested_term_months": 24,
+      "purpose": "Закупка оборудования"
+    },
+    "expected_result": {
+      "z_score": -6.05,
+      "pd": 0.0024,
+      "score": 998,
+      "risk_zone": "GREEN",
+      "status": "COUNTER_OFFERED",
+      "counter_offer": {
+        "amount": 10000000,
+        "term_months": 24,
+        "rate": 0.185,
+        "pti": 0.0301,
+        "reason": "Банк предлагает максимально доступные условия по продукту"
+      }
+    }
+  }
+]
