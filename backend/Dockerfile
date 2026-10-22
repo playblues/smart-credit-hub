@@ -26,8 +26,9 @@ RUN apk --no-cache add ca-certificates tzdata
 # Копирование бинарника из builder
 COPY --from=builder /bin/server /app/server
 
-# Копирование тестовых данных scoring для моков
+# Копирование тестовых данных scoring и конфигурации модели
 COPY scoring/testdata/cases.json /app/scoring/testdata/cases.json
+COPY scoring/model.json /app/scoring/model.json
 
 EXPOSE 8080
 
