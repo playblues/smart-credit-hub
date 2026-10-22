@@ -96,7 +96,7 @@ export const MyApplicationsList: React.FC<MyApplicationsListProps> = ({
 
                   <div className="text-[11px] text-gray-400 flex items-center gap-2">
                     <Clock className="w-3 h-3" />
-                    <span>Подана: {new Date(app.created_at || Date.now()).toLocaleDateString('ru-RU')}</span>
+                    <span>Подана: {app.created_at ? new Date(app.created_at).toLocaleDateString('ru-RU') : 'Сегодня'}</span>
                     {app.purpose && <span>• {app.purpose}</span>}
                   </div>
                 </div>

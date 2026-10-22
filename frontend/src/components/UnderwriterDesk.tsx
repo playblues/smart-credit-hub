@@ -198,9 +198,7 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
       .then((res) => {
         if (res && res.items && res.items.length > 0) {
           setApplications(res.items);
-          if (!res.items.some((a) => a.id === selectedId)) {
-            setSelectedId(res.items[0].id);
-          }
+          setSelectedId((prev) => (res.items.some((a) => a.id === prev) ? prev : res.items[0].id));
         }
       })
       .catch(() => {

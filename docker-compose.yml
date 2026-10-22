@@ -41,6 +41,18 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Фронтенд сервис (SPA React на Nginx с проксированием /api/ на backend)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: alfa_credit_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     driver: local
