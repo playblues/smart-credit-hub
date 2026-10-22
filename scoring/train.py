@@ -96,9 +96,11 @@ def build_scorecard(model, feature_cols, pdo=20, target_score=500, target_odds=1
         bins = BINS[feat]
         labels = LABELS[feat]
         for val, label in zip(bins, labels):
+            # Правильная формула PDO: score = A - B*z
+            # Больший вклад в риск (z) = МЕНЬШЕ баллов
             log_odds_contrib = base + coef * val
-            pts = round(offset / n_feats + factor * log_odds_contrib)
-            pts = max(-100, min(200, pts))  # ограничение диапазона
+            pts = round(offset / n_feats - factor * log_odds_contrib)
+            pts = max(-150, min(200, pts))  # ограничение диапазона
             rows.append({
                 "feature":      FEAT_NAMES[feat],
                 "label":        label,
