@@ -144,14 +144,14 @@ type CounterOffer struct {
 
 // ScoringResult результат скоринговой модели
 type ScoringResult struct {
-	ZScore         float64  `json:"z_score"`
-	PD             float64  `json:"pd"`
-	Score          int      `json:"score"`
-	RiskZone       RiskZone `json:"risk_zone"`
-	StopFactor     *string  `json:"stop_factor"`
-	FactorsClient  []string `json:"factors_client"`
-	FactorsBank    []string `json:"factors_bank"`
-	ModelVersion   string   `json:"model_version"`
+	ZScore        float64  `json:"z_score"`
+	PD            float64  `json:"pd"`
+	Score         int      `json:"score"`
+	RiskZone      RiskZone `json:"risk_zone"`
+	StopFactor    *string  `json:"stop_factor"`
+	FactorsClient []string `json:"factors_client"`
+	FactorsBank   []string `json:"factors_bank"`
+	ModelVersion  string   `json:"model_version"`
 }
 
 // CompanySnapshot снапшот данных ФНС и БКИ на момент подачи заявки
