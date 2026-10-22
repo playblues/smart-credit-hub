@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ type ApplicationRepository interface {
 	Create(ctx context.Context, tx pgx.Tx, app *domain.Application) error
 	GetByID(ctx context.Context, id string) (*domain.Application, error)
 	ListByUserID(ctx context.Context, userID string) ([]*domain.Application, error)
+	ListAll(ctx context.Context, status *domain.ApplicationStatus, riskZone *domain.RiskZone) ([]*domain.Application, error)
+	AddDocument(ctx context.Context, tx pgx.Tx, appID string, doc *domain.Document) error
 	UpdateStatus(
 		ctx context.Context,
 		tx pgx.Tx,
@@ -287,6 +290,105 @@ func (r *postgresApplicationRepository) ListByUserID(ctx context.Context, userID
 	return applications, nil
 }
 
+// ListAll возвращает список всех заявок с опциональной фильтрацией по статусу и риск-зоне (для андеррайтера).
+func (r *postgresApplicationRepository) ListAll(ctx context.Context, status *domain.ApplicationStatus, riskZone *domain.RiskZone) ([]*domain.Application, error) {
+	query := `
+		SELECT
+			id, user_id, inn, status, product_type, purpose,
+			requested_amount, requested_term_months, approved_amount, approved_term_months,
+			interest_rate, counter_offer, scoring_result, company_snapshot,
+			underwriter_comment, reject_reason_client, created_at, updated_at
+		FROM applications
+		WHERE 1=1
+	`
+	var args []any
+	argIndex := 1
+
+	if status != nil && *status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argIndex)
+		args = append(args, string(*status))
+		argIndex++
+	}
+
+	if riskZone != nil && *riskZone != "" {
+		query += fmt.Sprintf(" AND scoring_result->>'risk_zone' = $%d", argIndex)
+		args = append(args, string(*riskZone))
+		argIndex++
+	}
+
+	query += " ORDER BY created_at DESC;"
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка получения списка всех заявок: %w", err)
+	}
+	defer rows.Close()
+
+	applications := make([]*domain.Application, 0)
+	for rows.Next() {
+		var app domain.Application
+		var statusStr, productTypeStr string
+		var counterOfferBytes, scoringResultBytes, companySnapshotBytes []byte
+
+		if err := rows.Scan(
+			&app.ID, &app.UserID, &app.INN, &statusStr, &productTypeStr, &app.Purpose,
+			&app.RequestedAmount, &app.RequestedTermMonths, &app.ApprovedAmount, &app.ApprovedTermMonths,
+			&app.InterestRate, &counterOfferBytes, &scoringResultBytes, &companySnapshotBytes,
+			&app.UnderwriterComment, &app.RejectReasonClient, &app.CreatedAt, &app.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("ошибка сканирования строки заявки: %w", err)
+		}
+
+		app.Status = domain.ApplicationStatus(statusStr)
+		app.ProductType = domain.ProductType(productTypeStr)
+		app.Documents = make([]domain.Document, 0)
+		app.StatusHistory = make([]domain.AuditLogEntry, 0)
+
+		if len(counterOfferBytes) > 0 {
+			var co domain.CounterOffer
+			if err := json.Unmarshal(counterOfferBytes, &co); err == nil {
+				app.CounterOffer = &co
+			}
+		}
+		if len(scoringResultBytes) > 0 {
+			var sr domain.ScoringResult
+			if err := json.Unmarshal(scoringResultBytes, &sr); err == nil {
+				app.ScoringResult = &sr
+			}
+		}
+		if len(companySnapshotBytes) > 0 {
+			var cs domain.CompanySnapshot
+			if err := json.Unmarshal(companySnapshotBytes, &cs); err == nil {
+				app.CompanySnapshot = &cs
+			}
+		}
+
+		applications = append(applications, &app)
+	}
+
+	return applications, nil
+}
+
+// AddDocument сохраняет запись о загруженном документе в БД.
+func (r *postgresApplicationRepository) AddDocument(ctx context.Context, tx pgx.Tx, appID string, doc *domain.Document) error {
+	exec := r.getExecutor(tx)
+
+	query := `
+		INSERT INTO documents (id, application_id, name, document_type, file_path, size_bytes, uploaded_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7);
+	`
+	if doc.UploadedAt.IsZero() {
+		doc.UploadedAt = time.Now()
+	}
+
+	_, err := exec.Exec(ctx, query, doc.ID, appID, doc.Name, string(doc.DocumentType), doc.FilePath, doc.SizeBytes, doc.UploadedAt)
+	if err != nil {
+		return fmt.Errorf("ошибка сохранения документа: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateStatus атомарно переводит статус заявки с проверкой текущего статуса и записывает аудит.
 func (r *postgresApplicationRepository) UpdateStatus(
 	ctx context.Context,
@@ -352,7 +454,6 @@ func (r *postgresApplicationRepository) UpdateStatus(
 	}
 
 	if tag.RowsAffected() == 0 {
-		// Проверяем, существует ли заявка
 		var currentStatus string
 		checkErr := exec.QueryRow(ctx, "SELECT status FROM applications WHERE id = $1", id).Scan(&currentStatus)
 		if checkErr != nil {
@@ -427,7 +528,6 @@ func (r *InMemoryApplicationRepository) GetByID(ctx context.Context, id string) 
 		return nil, domain.ErrNotFound(fmt.Sprintf("Заявка с ID '%s' не найдена", id), nil)
 	}
 
-	// Возвращаем копию для безопасности
 	cp := *app
 	return &cp, nil
 }
@@ -444,6 +544,48 @@ func (r *InMemoryApplicationRepository) ListByUserID(ctx context.Context, userID
 		}
 	}
 	return result, nil
+}
+
+func (r *InMemoryApplicationRepository) ListAll(ctx context.Context, status *domain.ApplicationStatus, riskZone *domain.RiskZone) ([]*domain.Application, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.Application
+	for _, app := range r.applications {
+		if status != nil && *status != "" && app.Status != *status {
+			continue
+		}
+		if riskZone != nil && *riskZone != "" {
+			if app.ScoringResult == nil || app.ScoringResult.RiskZone != *riskZone {
+				continue
+			}
+		}
+		cp := *app
+		result = append(result, &cp)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.After(result[j].CreatedAt)
+	})
+
+	return result, nil
+}
+
+func (r *InMemoryApplicationRepository) AddDocument(ctx context.Context, tx pgx.Tx, appID string, doc *domain.Document) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	app, exists := r.applications[appID]
+	if !exists {
+		return domain.ErrNotFound(fmt.Sprintf("Заявка с ID '%s' не найдена", appID), nil)
+	}
+
+	if doc.UploadedAt.IsZero() {
+		doc.UploadedAt = time.Now()
+	}
+
+	app.Documents = append(app.Documents, *doc)
+	return nil
 }
 
 func (r *InMemoryApplicationRepository) UpdateStatus(

@@ -133,6 +133,16 @@ const (
 	DocOther              DocumentType = "OTHER"
 )
 
+// IsValid проверяет валидность типа документа.
+func (dt DocumentType) IsValid() bool {
+	switch dt {
+	case DocFinancialStatement, DocTaxDeclaration, DocBankStatement, DocLeaseContract, DocOther:
+		return true
+	default:
+		return false
+	}
+}
+
 // CounterOffer встречное предложение банка
 type CounterOffer struct {
 	Amount     float64 `json:"amount"`
@@ -192,6 +202,24 @@ type CreateApplicationRequest struct {
 	RequestedAmount     float64     `json:"requested_amount"`
 	RequestedTermMonths int         `json:"requested_term_months"`
 	Purpose             *string     `json:"purpose,omitempty"`
+}
+
+// DecisionAction тип действия андеррайтера
+type DecisionAction string
+
+const (
+	ActionApprove          DecisionAction = "APPROVE"
+	ActionReject           DecisionAction = "REJECT"
+	ActionRequestDocuments DecisionAction = "REQUEST_DOCUMENTS"
+	ActionCounterOffer     DecisionAction = "COUNTER_OFFER"
+)
+
+// UnderwriterDecisionRequest DTO решения андеррайтера (POST /api/v1/bank/applications/{id}/decision).
+type UnderwriterDecisionRequest struct {
+	Action                 DecisionAction `json:"action"`
+	Comment                *string        `json:"comment,omitempty"`
+	CounterOfferAmount     *float64       `json:"counter_offer_amount,omitempty"`
+	CounterOfferTermMonths *int           `json:"counter_offer_term_months,omitempty"`
 }
 
 // ApplicationUpdateFields поля обновления заявки при переходе статуса.

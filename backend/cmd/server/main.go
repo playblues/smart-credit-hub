@@ -106,12 +106,13 @@ func main() {
 
 	// 7. Построение HTTP-роутера со всеми слоями, middleware и проверкой БД в healthcheck
 	router := api.NewRouter(api.Dependencies{
-		Config:      cfg,
-		AuthService: authService,
-		MockService: mockService,
-		AppRepo:     appRepo,
-		Pipeline:    pipeline,
-		Pinger:      pool,
+		Config:       cfg,
+		AuthService:  authService,
+		MockService:  mockService,
+		AppRepo:      appRepo,
+		Pipeline:     pipeline,
+		ScoringModel: scoringModel,
+		Pinger:       pool,
 	})
 
 	// 8. Конфигурация HTTP-сервера с защитой от медленных соединений
