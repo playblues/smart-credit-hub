@@ -12,6 +12,9 @@ type Config struct {
 	// Port - порт для запуска HTTP-сервера (по умолчанию: "8080").
 	Port string
 
+	// DBDSN - строка подключения к PostgreSQL.
+	DBDSN string
+
 	// JWTSecret - секретный ключ для подписи и верификации JWT.
 	JWTSecret string
 
@@ -47,6 +50,8 @@ func Load() *Config {
 		port = ":" + port
 	}
 
+	dbDSN := getEnv("DB_DSN", "postgres://alfa_user:alfa_password@localhost:5432/alfa_credit_db?sslmode=disable")
+
 	jwtSecret := getEnv("JWT_SECRET", "smart-credit-hub-super-secret-key-demo-2026")
 
 	jwtExpHours, err := strconv.Atoi(getEnv("JWT_EXPIRATION_HOURS", "24"))
@@ -67,6 +72,7 @@ func Load() *Config {
 
 	return &Config{
 		Port:               port,
+		DBDSN:              dbDSN,
 		JWTSecret:          jwtSecret,
 		JWTExpirationHours: jwtExpHours,
 		CasesFilePath:      casesPath,

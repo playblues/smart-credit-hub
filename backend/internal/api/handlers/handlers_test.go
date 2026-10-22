@@ -2,7 +2,9 @@ package handlers_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +15,17 @@ import (
 	"smart-credit-hub/internal/config"
 	"smart-credit-hub/internal/domain"
 	"smart-credit-hub/internal/mock"
+	"smart-credit-hub/internal/storage"
 )
+
+// mockPinger мок для проверки логики healthcheck
+type mockPinger struct {
+	err error
+}
+
+func (m *mockPinger) Ping(ctx context.Context) error {
+	return m.err
+}
 
 // setupTestRouter инициализирует тестовое окружение и возвращает настроенный HTTP-роутер и сервисы.
 func setupTestRouter(t *testing.T) (http.Handler, auth.Service, mock.Service) {
@@ -33,13 +45,15 @@ func setupTestRouter(t *testing.T) (http.Handler, auth.Service, mock.Service) {
 		t.Fatalf("ошибка инициализации mock.Service: %v", err)
 	}
 
+	userRepo := storage.NewInMemoryUserRepository(auth.GetDemoUsers()...)
 	tokenManager := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTExpirationHours)
-	authSvc := auth.NewService(tokenManager)
+	authSvc := auth.NewService(tokenManager, userRepo)
 
 	router := api.NewRouter(api.Dependencies{
 		Config:      cfg,
 		AuthService: authSvc,
 		MockService: mockSvc,
+		Pinger:      nil,
 	})
 
 	return router, authSvc, mockSvc
@@ -289,7 +303,66 @@ func TestHealthCheck(t *testing.T) {
 	}
 }
 
-// 9. Тест проверки Middleware авторизации и ролевого доступа (RequireRole)
+// 9. Тест проверки доступности БД в healthcheck (успешный ping -> 200 OK)
+func TestHealthCheck_Database_Success(t *testing.T) {
+	cfg := &config.Config{Port: ":8080", CORSAllowedOrigins: []string{"*"}}
+	mockSvc, _ := mock.NewService("")
+	authSvc := auth.NewService(auth.NewTokenManager("sec", 1), storage.NewInMemoryUserRepository())
+
+	router := api.NewRouter(api.Dependencies{
+		Config:      cfg,
+		AuthService: authSvc,
+		MockService: mockSvc,
+		Pinger:      &mockPinger{err: nil},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался 200 OK, получен: %d", rec.Code)
+	}
+
+	var resp domain.HealthResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Database != "connected" {
+		t.Errorf("ожидалось database: connected, получено: %s", resp.Database)
+	}
+}
+
+// 10. Тест проверки недоступности БД в healthcheck (ошибка ping -> 503 Service Unavailable)
+func TestHealthCheck_Database_Failure(t *testing.T) {
+	cfg := &config.Config{Port: ":8080", CORSAllowedOrigins: []string{"*"}}
+	mockSvc, _ := mock.NewService("")
+	authSvc := auth.NewService(auth.NewTokenManager("sec", 1), storage.NewInMemoryUserRepository())
+
+	router := api.NewRouter(api.Dependencies{
+		Config:      cfg,
+		AuthService: authSvc,
+		MockService: mockSvc,
+		Pinger:      &mockPinger{err: errors.New("connection refused")},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("ожидался 503 Service Unavailable, получен: %d", rec.Code)
+	}
+
+	var errResp domain.ErrorResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("ошибка разбора ErrorResponse: %v", err)
+	}
+
+	if errResp.Code != "SERVICE_UNAVAILABLE" {
+		t.Errorf("ожидался код ошибки SERVICE_UNAVAILABLE, получен: %s", errResp.Code)
+	}
+}
+
+// 11. Тест проверки Middleware авторизации и ролевого доступа (RequireRole)
 func TestMiddleware_RequireRole(t *testing.T) {
 	_, authSvc, _ := setupTestRouter(t)
 

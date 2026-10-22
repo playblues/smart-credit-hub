@@ -16,6 +16,7 @@ type Dependencies struct {
 	Config      *config.Config
 	AuthService auth.Service
 	MockService mock.Service
+	Pinger      handlers.Pinger
 }
 
 // NewRouter собирает и конфигурирует Chi-роутер приложения со всеми middleware и хэндлерами.
@@ -29,7 +30,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.CORS(deps.Config.CORSAllowedOrigins))
 
 	// Инициализация хэндлеров
-	healthH := handlers.NewHealthHandler()
+	healthH := handlers.NewHealthHandler(deps.Pinger)
 	authH := handlers.NewAuthHandler(deps.AuthService)
 	mockH := handlers.NewMockHandler(deps.MockService)
 

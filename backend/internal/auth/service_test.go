@@ -7,6 +7,7 @@ import (
 
 	"smart-credit-hub/internal/auth"
 	"smart-credit-hub/internal/domain"
+	"smart-credit-hub/internal/storage"
 )
 
 func TestTokenManager_GenerateAndValidate(t *testing.T) {
@@ -15,7 +16,7 @@ func TestTokenManager_GenerateAndValidate(t *testing.T) {
 
 	inn := "7701000001"
 	user := &domain.User{
-		ID:          "usr_1",
+		ID:          "00000000-0000-0000-0000-000000000001",
 		Login:       "client_alfa",
 		Role:        domain.RoleClient,
 		INN:         &inn,
@@ -58,7 +59,8 @@ func TestTokenManager_GenerateAndValidate(t *testing.T) {
 
 func TestAuthService_Authenticate(t *testing.T) {
 	tm := auth.NewTokenManager("test-secret", 1)
-	svc := auth.NewService(tm)
+	userRepo := storage.NewInMemoryUserRepository(auth.GetDemoUsers()...)
+	svc := auth.NewService(tm, userRepo)
 	ctx := context.Background()
 
 	// 1. Успешный вход по логину
@@ -92,7 +94,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 	}
 
 	// 5. Поиск по ID
-	user, err := svc.GetUserByID(ctx, "usr_client_1")
+	user, err := svc.GetUserByID(ctx, "00000000-0000-0000-0000-000000000001")
 	if err != nil {
 		t.Fatalf("ошибка получения пользователя по ID: %v", err)
 	}
@@ -102,7 +104,6 @@ func TestAuthService_Authenticate(t *testing.T) {
 }
 
 func TestTokenManager_Expiration(t *testing.T) {
-	// Создаем менеджер с нулевым/отрицательным временем или проверяем парсинг
 	tm := auth.NewTokenManager("secret", 1)
 	user := &domain.User{
 		ID:          "usr_exp",
