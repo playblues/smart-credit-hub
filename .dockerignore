@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+frontend/node_modules
+frontend/dist
+backend/uploads
+backend/bin
+scoring/dataset_sme_synthetic.csv
+scoring/__pycache__
+*.log

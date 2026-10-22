@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # База данных PostgreSQL 15.8 для кредитного конвейера
   postgres:
