@@ -65,8 +65,9 @@ def build_scorecard(model, feature_cols, pdo=20, target_score=500, target_odds=1
     n_feats   = len(feature_cols)
 
     BINS = {
-        "revenue_to_loan_ratio":   [0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
-        "business_age_years":      [0.5, 1.0, 2.0, 3.0, 5.0, 8.0],
+        # значения идут в том же порядке, что и подписи (от лучшего к худшему)
+        "revenue_to_loan_ratio":   [3.0, 2.5, 2.0, 1.5, 1.0, 0.5],
+        "business_age_years":      [8.0, 5.0, 3.0, 2.0, 1.0, 0.5],
         "bki_active_loans_count":  [0,   1,   2,   3,   4,   5  ],
         "bki_had_past_delinquency":[0,   1                       ],
     }
