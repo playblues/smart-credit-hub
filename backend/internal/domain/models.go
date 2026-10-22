@@ -185,6 +185,27 @@ type AuditLogEntry struct {
 	Comment    *string           `json:"comment"`
 }
 
+// CreateApplicationRequest DTO запроса на создание заявки (POST /api/v1/applications).
+type CreateApplicationRequest struct {
+	INN                 string      `json:"inn"`
+	ProductType         ProductType `json:"product_type"`
+	RequestedAmount     float64     `json:"requested_amount"`
+	RequestedTermMonths int         `json:"requested_term_months"`
+	Purpose             *string     `json:"purpose,omitempty"`
+}
+
+// ApplicationUpdateFields поля обновления заявки при переходе статуса.
+type ApplicationUpdateFields struct {
+	ApprovedAmount     *float64
+	ApprovedTermMonths *int
+	InterestRate       *float64
+	CounterOffer       *CounterOffer
+	ScoringResult      *ScoringResult
+	CompanySnapshot    *CompanySnapshot
+	UnderwriterComment *string
+	RejectReasonClient *string
+}
+
 // Application кредитная заявка
 type Application struct {
 	ID                  string            `json:"id"`

@@ -76,6 +76,15 @@ func ErrBadRequest(message string, details *string) *AppError {
 	return NewAppError(http.StatusBadRequest, ErrCodeBadRequest, message, details)
 }
 
+func ErrConflictState(message string, details *string) *AppError {
+	return NewAppError(http.StatusConflict, ErrCodeConflictState, message, details)
+}
+
+func ErrInvalidStateTransition(from, to ApplicationStatus) *AppError {
+	msg := fmt.Sprintf("Действие недопустимо для текущего статуса заявки: переход из '%s' в '%s' запрещен", from, to)
+	return NewAppError(http.StatusConflict, ErrCodeConflictState, msg, nil)
+}
+
 func ErrInternal(details *string) *AppError {
 	return NewAppError(http.StatusInternalServerError, ErrCodeInternalError, "Внутренняя ошибка сервера", details)
 }

@@ -6,9 +6,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"smart-credit-hub/internal/api/handlers"
 	"smart-credit-hub/internal/api/middleware"
+	"smart-credit-hub/internal/app"
 	"smart-credit-hub/internal/auth"
 	"smart-credit-hub/internal/config"
+	"smart-credit-hub/internal/domain"
 	"smart-credit-hub/internal/mock"
+	"smart-credit-hub/internal/storage"
 )
 
 // Dependencies объединяет все зависимости для сборки роутера приложения.
@@ -16,6 +19,8 @@ type Dependencies struct {
 	Config      *config.Config
 	AuthService auth.Service
 	MockService mock.Service
+	AppRepo     storage.ApplicationRepository
+	Pipeline    *app.PipelineService
 	Pinger      handlers.Pinger
 }
 
@@ -29,10 +34,17 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.CORS(deps.Config.CORSAllowedOrigins))
 
+	// Инициализация репозитория по умолчанию для тестов
+	appRepo := deps.AppRepo
+	if appRepo == nil {
+		appRepo = storage.NewInMemoryApplicationRepository()
+	}
+
 	// Инициализация хэндлеров
 	healthH := handlers.NewHealthHandler(deps.Pinger)
 	authH := handlers.NewAuthHandler(deps.AuthService)
 	mockH := handlers.NewMockHandler(deps.MockService)
+	appsH := handlers.NewApplicationsHandler(appRepo, deps.Pipeline)
 
 	// Liveness проверка (доступна на корневом уровне)
 	r.Get("/healthz", healthH.Check)
@@ -48,6 +60,20 @@ func NewRouter(deps Dependencies) http.Handler {
 		r.Route("/mock", func(r chi.Router) {
 			r.Get("/fns/{inn}", mockH.GetFNS)
 			r.Get("/bki/{inn}", mockH.GetBKI)
+		})
+
+		// Защищенные эндпоинты заявок (требуют JWT авторизации)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(deps.AuthService))
+
+			r.Route("/applications", func(r chi.Router) {
+				// Создание и просмотр списка - только клиенты
+				r.With(middleware.RequireRole(domain.RoleClient)).Post("/", appsH.CreateApplication)
+				r.With(middleware.RequireRole(domain.RoleClient)).Get("/", appsH.ListApplications)
+
+				// Просмотр заявки по ID: клиент видит только свою, андеррайтер - любую
+				r.Get("/{id}", appsH.GetApplicationByID)
+			})
 		})
 	})
 
