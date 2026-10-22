@@ -27,6 +27,9 @@ type Config struct {
 	// CORSAllowedOrigins - список разрешенных origins для CORS.
 	CORSAllowedOrigins []string
 
+	// UploadDir - директория для сохранения загружаемых документов (по умолчанию: "uploads").
+	UploadDir string
+
 	// Environment - среда окружения (development, production, test).
 	Environment string
 
@@ -51,7 +54,6 @@ func Load() *Config {
 	}
 
 	dbDSN := getEnv("DB_DSN", "postgres://alfa_user:alfa_password@localhost:5432/alfa_credit_db?sslmode=disable")
-
 	jwtSecret := getEnv("JWT_SECRET", "smart-credit-hub-super-secret-key-demo-2026")
 
 	jwtExpHours, err := strconv.Atoi(getEnv("JWT_EXPIRATION_HOURS", "24"))
@@ -59,7 +61,6 @@ func Load() *Config {
 		jwtExpHours = 24
 	}
 
-	// Поиск cases.json с поддержкой запуска из разных директорий (корень, backend, cmd/server, internal/...)
 	casesPath := FindCasesFilePath(getEnv("CASES_FILE_PATH", ""))
 
 	corsOriginsStr := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
@@ -68,6 +69,7 @@ func Load() *Config {
 		corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
 	}
 
+	uploadDir := getEnv("UPLOAD_DIR", "uploads")
 	env := getEnv("APP_ENV", "development")
 
 	return &Config{
@@ -77,6 +79,7 @@ func Load() *Config {
 		JWTExpirationHours: jwtExpHours,
 		CasesFilePath:      casesPath,
 		CORSAllowedOrigins: corsOrigins,
+		UploadDir:          uploadDir,
 		Environment:        env,
 		ReadHeaderTimeout:  5 * time.Second,
 		ReadTimeout:        15 * time.Second,
@@ -115,6 +118,5 @@ func FindCasesFilePath(override string) string {
 		}
 	}
 
-	// Если не найден относительный путь, возвращаем стандартный путь
 	return "scoring/testdata/cases.json"
 }

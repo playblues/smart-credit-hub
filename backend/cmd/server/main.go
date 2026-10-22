@@ -12,9 +12,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"smart-credit-hub/internal/api"
+	"smart-credit-hub/internal/app"
 	"smart-credit-hub/internal/auth"
 	"smart-credit-hub/internal/config"
 	"smart-credit-hub/internal/mock"
+	"smart-credit-hub/internal/scoring"
 	"smart-credit-hub/internal/storage"
 	"smart-credit-hub/migrations"
 )
@@ -78,8 +80,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 5. Инициализация репозиториев и мок-сервиса
+	// 5. Инициализация репозиториев, скорингового ядра и мок-сервиса
 	userRepo := storage.NewPostgresUserRepository(pool)
+	appRepo := storage.NewPostgresApplicationRepository(pool)
 
 	mockService, err := mock.NewService(cfg.CasesFilePath)
 	if err != nil {
@@ -87,16 +90,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	scoringModel, err := scoring.LoadModel("")
+	if err != nil {
+		slog.Error("Критическая ошибка загрузки скоринговой модели", "error", err)
+		os.Exit(1)
+	}
+	scoringEngine := scoring.NewEngine(scoringModel)
+
+	// Фоновый кредитный конвейер
+	pipeline := app.NewPipelineService(appRepo, mockService, scoringEngine, pool)
+
 	// 6. Инициализация сервиса аутентификации и токенов JWT
 	tokenManager := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTExpirationHours)
 	authService := auth.NewService(tokenManager, userRepo)
 
 	// 7. Построение HTTP-роутера со всеми слоями, middleware и проверкой БД в healthcheck
 	router := api.NewRouter(api.Dependencies{
-		Config:      cfg,
-		AuthService: authService,
-		MockService: mockService,
-		Pinger:      pool,
+		Config:       cfg,
+		AuthService:  authService,
+		MockService:  mockService,
+		AppRepo:      appRepo,
+		Pipeline:     pipeline,
+		ScoringModel: scoringModel,
+		Pinger:       pool,
 	})
 
 	// 8. Конфигурация HTTP-сервера с защитой от медленных соединений
