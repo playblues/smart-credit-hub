@@ -1,0 +1,65 @@
+{
+  "version": "1.2.0",
+  "name": "Alfa SME Scoring Matrix",
+  "stop_factors": [
+    {
+      "id": "bki_overdue_90",
+      "field": "bki.max_overdue_days",
+      "op": ">=",
+      "threshold": 90,
+      "reason_client": "Наличие просроченной задолженности свыше 90 дней в кредитной истории",
+      "reason_bank": "Max overdue >= 90 days in BKI"
+    },
+    {
+      "id": "company_liquidating",
+      "field": "company.is_liquidating",
+      "op": "==",
+      "threshold": true,
+      "reason_client": "Компания находится в стадии реорганизации или ликвидации",
+      "reason_bank": "FNS: company is in liquidation or bankruptcy"
+    },
+    {
+      "id": "business_age_under_6m",
+      "field": "company.business_age_months",
+      "op": "<",
+      "threshold": 6,
+      "reason_client": "Срок ведения деятельности компании составляет менее 6 месяцев",
+      "reason_bank": "Business age < 6 months"
+    }
+  ],
+  "scoring_formula": {
+    "intercept": -2.60,
+    "ratio_cap": 3.0,
+    "weights": {
+      "revenue_to_loan_ratio": -0.40,
+      "business_age_years": -0.45,
+      "bki_active_loans_count": 0.40,
+      "bki_had_past_delinquency": 0.60
+    },
+    "pd": "1 / (1 + exp(-z))",
+    "score": "round(1000 * (1 - pd))"
+  },
+  "risk_zones": {
+    "green": { "max_pd": 0.05, "action": "AUTO_APPROVE" },
+    "yellow": { "max_pd": 0.12, "action": "COUNTER_OFFER" },
+    "grey": { "max_pd": 0.18, "action": "MANUAL_REVIEW" },
+    "red": { "max_pd": 1.00, "action": "REJECT" }
+  },
+  "products": {
+    "WORKING_CAPITAL": { "name": "Оборотный кредит", "max_amount": 10000000, "max_term_months": 36, "base_rate": 0.185 },
+    "OVERDRAFT": { "name": "Овердрафт для бизнеса", "max_amount": 3000000, "max_term_months": 12, "base_rate": 0.210 }
+  },
+  "limits_validation": {
+    "exceeding_action": "COUNTER_OFFER_AT_LIMIT",
+    "reason_client": "Запрошенные параметры превышают лимиты продукта, банк предлагает максимально доступные условия"
+  },
+  "counter_offer_rules": {
+    "max_pti": 0.35,
+    "amount_cut_multiplier": 0.65,
+    "amount_step": 50000,
+    "rate_markup": 0.02,
+    "pti_definition": "(12 * аннуитетный месячный платёж) / годовая выручка",
+    "reason_client_cut": "Банк предлагает меньшую сумму, чтобы ежемесячные платежи были посильны для вашего бизнеса",
+    "reason_client_limit": "Банк предлагает максимально доступные условия по продукту"
+  }
+}
