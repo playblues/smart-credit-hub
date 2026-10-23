@@ -17,14 +17,12 @@ interface ApplicationTrackerProps {
   applicationId: string;
   initialApplication?: Application;
   onBackToNew: () => void;
-  onOpenUnderwriter?: () => void;
 }
 
 export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
   applicationId,
   initialApplication,
   onBackToNew,
-  onOpenUnderwriter,
 }) => {
   const [app, setApp] = useState<Application | null>(initialApplication || null);
   const [isSigning, setIsSigning] = useState(false);
@@ -600,21 +598,9 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
             </h3>
           </div>
 
-          <p className="text-xs text-gray-500 mb-6">
+          <p className="text-xs text-gray-500">
             Заявка находится на индивидуальном анализе у сотрудника Альфа-Банка. Мы внимательно проверяем показатели вашего бизнеса для принятия взвешенного решения.
           </p>
-
-          {onOpenUnderwriter && (
-            <div className="p-3.5 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-between text-xs">
-              <span className="text-gray-600">Перейти в консоль банка:</span>
-              <button
-                onClick={onOpenUnderwriter}
-                className="px-3 py-1.5 rounded bg-gray-900 text-white font-medium hover:bg-black transition-colors"
-              >
-                Кабинет эксперта ➔
-              </button>
-            </div>
-          )}
         </div>
       )}
 

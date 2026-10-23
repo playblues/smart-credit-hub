@@ -412,3 +412,77 @@ func TestMiddleware_RequireRole(t *testing.T) {
 		t.Errorf("андеррайтеру должен возвращаться 200, получен: %d", recUnderwriter.Code)
 	}
 }
+
+// 12. Тест информационной визитки на GET /
+func TestRoot_WelcomeInfo(t *testing.T) {
+	router, _, _ := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ожидался код 200 OK на GET /, получен: %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json; charset=utf-8" {
+		t.Errorf("ожидался Content-Type application/json; charset=utf-8, получен: %s", contentType)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("ошибка парсинга JSON: %v", err)
+	}
+
+	if resp["service"] != "Alfa SME Credit Pipeline API" {
+		t.Errorf("неверное имя сервиса: %v", resp["service"])
+	}
+	if resp["version"] != "1.0.0" {
+		t.Errorf("неверная версия: %v", resp["version"])
+	}
+	if resp["status"] != "operational" {
+		t.Errorf("неверный статус: %v", resp["status"])
+	}
+	if resp["frontend_url"] != "http://localhost:3000" {
+		t.Errorf("неверный frontend_url: %v", resp["frontend_url"])
+	}
+	if resp["healthcheck"] != "/healthz" {
+		t.Errorf("неверный healthcheck: %v", resp["healthcheck"])
+	}
+	if resp["api_prefix"] != "/api/v1" {
+		t.Errorf("неверный api_prefix: %v", resp["api_prefix"])
+	}
+}
+
+// 13. Тест кастомного 404 обработчика для несуществующих маршрутов
+func TestNotFound_CustomJSON(t *testing.T) {
+	router, _, _ := setupTestRouter(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/unknown-route-for-testing", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("ожидался код 404 Not Found, получен: %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json; charset=utf-8" {
+		t.Errorf("ожидался Content-Type application/json; charset=utf-8, получен: %s", contentType)
+	}
+
+	var errResp domain.ErrorResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("ошибка парсинга ErrorResponse: %v", err)
+	}
+
+	if errResp.Code != domain.ErrCodeNotFound {
+		t.Errorf("ожидался код ошибки NOT_FOUND, получен: %s", errResp.Code)
+	}
+	if errResp.Message != "Маршрут не найден" {
+		t.Errorf("ожидалось сообщение 'Маршрут не найден', получено: %s", errResp.Message)
+	}
+}

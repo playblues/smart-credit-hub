@@ -65,6 +65,24 @@ func NewRouter(deps Dependencies) http.Handler {
 		bankH = handlers.NewBankHandler(appRepo, deps.ScoringModel)
 	}
 
+	// Обработчик 404 (Маршрут не найден) в формате OpenAPI ErrorResponse
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		domain.RespondWithError(w, http.StatusNotFound, domain.ErrCodeNotFound, "Маршрут не найден", nil)
+	})
+
+	// Информационная визитка API на корневом маршруте
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		domain.RespondWithJSON(w, http.StatusOK, map[string]any{
+			"service":      "Alfa SME Credit Pipeline API",
+			"version":      "1.0.0",
+			"status":       "operational",
+			"frontend_url": "http://localhost:3000",
+			"healthcheck":  "/healthz",
+			"api_prefix":   "/api/v1",
+			"message":      "Welcome to Alfa Smart Credit Hub API. Open http://localhost:3000 for the web interface.",
+		})
+	})
+
 	// Liveness проверка (доступна на корневом уровне)
 	r.Get("/healthz", healthH.Check)
 

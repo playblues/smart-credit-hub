@@ -236,11 +236,6 @@ export function App() {
             applicationId={currentApp.id}
             initialApplication={currentApp}
             onBackToNew={handleNewApplicationClick}
-            onOpenUnderwriter={() => {
-              if (session?.role === 'UNDERWRITER') {
-                setActiveTab('underwriter');
-              }
-            }}
           />
         ) : (
           <ApplicationForm
