@@ -58,12 +58,17 @@ func (s *PipelineService) StartProcessing(appID string) {
 				)
 
 				failComment := fmt.Sprintf("Критический сбой обработки: %v", r)
+				fromStatus := domain.StatusSubmitted
+				if currApp, err := s.appRepo.GetByID(context.Background(), appID); err == nil && currApp != nil {
+					fromStatus = currApp.Status
+				}
+
 				// Фиксация ошибки в статусе заявки
 				_ = s.appRepo.UpdateStatus(
 					context.Background(),
 					nil,
 					appID,
-					domain.StatusSubmitted,
+					fromStatus,
 					domain.StatusRejected,
 					"SYSTEM",
 					&failComment,

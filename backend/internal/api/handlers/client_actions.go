@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"io"
 	"net/http"
 	"os"
@@ -393,14 +395,22 @@ func (h *ClientActionsHandler) Sign(w http.ResponseWriter, r *http.Request) {
 
 	// Фоновый процесс выдачи кредитных средств (~2 секунды: SIGNED -> DISBURSED)
 	go func(appID string, delay time.Duration) {
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("КРИТИЧЕСКАЯ ПАНИКА в процессе выдачи средств",
+					slog.String("application_id", appID),
+					slog.Any("panic", r),
+					slog.String("stack", string(debug.Stack())),
+				)
+			}
+		}()
 
 		if delay > 0 {
 			time.Sleep(delay)
 		}
 
 		disburseComment := "Кредитные средства успешно зачислены на расчетный счет клиента"
-		_ = h.appRepo.UpdateStatus(
+		err := h.appRepo.UpdateStatus(
 			context.Background(),
 			nil,
 			appID,
@@ -410,6 +420,12 @@ func (h *ClientActionsHandler) Sign(w http.ResponseWriter, r *http.Request) {
 			&disburseComment,
 			nil,
 		)
+		if err != nil {
+			slog.Error("Ошибка перевода заявки в статус DISBURSED",
+				slog.String("application_id", appID),
+				slog.String("error", err.Error()),
+			)
+		}
 	}(id, h.disburseDelay)
 
 	updatedApp, err := h.appRepo.GetByID(r.Context(), id)

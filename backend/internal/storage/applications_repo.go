@@ -58,6 +58,12 @@ func (r *postgresApplicationRepository) getExecutor(tx pgx.Tx) DBExecutor {
 
 // Create сохраняет новую заявку и делает первую запись в аудит лог.
 func (r *postgresApplicationRepository) Create(ctx context.Context, tx pgx.Tx, app *domain.Application) error {
+	if tx == nil {
+		return WithinTransaction(ctx, r.pool, func(tx pgx.Tx) error {
+			return r.Create(ctx, tx, app)
+		})
+	}
+
 	exec := r.getExecutor(tx)
 
 	var counterOfferJSON, scoringResultJSON, companySnapshotJSON []byte
@@ -399,6 +405,12 @@ func (r *postgresApplicationRepository) UpdateStatus(
 	comment *string,
 	extra *domain.ApplicationUpdateFields,
 ) error {
+	if tx == nil {
+		return WithinTransaction(ctx, r.pool, func(tx pgx.Tx) error {
+			return r.UpdateStatus(ctx, tx, id, oldStatus, newStatus, actorRole, comment, extra)
+		})
+	}
+
 	exec := r.getExecutor(tx)
 
 	var counterOfferJSON, scoringResultJSON, companySnapshotJSON []byte
