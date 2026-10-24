@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"smart-credit-hub/internal/auth"
 	"smart-credit-hub/internal/domain"
 	"smart-credit-hub/internal/storage"
@@ -124,5 +126,31 @@ func TestTokenManager_Expiration(t *testing.T) {
 
 	if claims.ExpiresAt.Before(time.Now()) {
 		t.Errorf("время истечения токена в прошлом")
+	}
+}
+
+// 4. Проверка совпадения сид-хэша пароля из миграции 000002_seed_data.up.sql с demo123
+func TestSeedPasswordHash_MatchesDemoPassword(t *testing.T) {
+	hash := "$2a$10$cbO2nMNWeHJZK.XAX8Y5NeA02qx3oTJCO4pl8FJoHAhdmiLzE/Igm"
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte("demo123"))
+	if err != nil {
+		t.Fatalf("Seed hash does not match 'demo123': %v", err)
+	}
+	errWrong := bcrypt.CompareHashAndPassword([]byte(hash), []byte("wrong_pass"))
+	if errWrong == nil {
+		t.Fatal("Seed hash unexpectedly matched 'wrong_pass'")
+	}
+
+	// Дополнительно проверяем метод CheckPassword доменного пользователя с этим хэшем
+	user := &domain.User{
+		ID:           "test_seed_user",
+		Login:        "client_alfa",
+		PasswordHash: hash,
+	}
+	if !user.CheckPassword("demo123") {
+		t.Fatal("user.CheckPassword('demo123') returned false for valid seed hash")
+	}
+	if user.CheckPassword("wrong_pass") {
+		t.Fatal("user.CheckPassword('wrong_pass') returned true for invalid password")
 	}
 }
