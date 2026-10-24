@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -72,6 +73,11 @@ func (h *AssistantHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	runes := []rune(req.Message)
+	if len(runes) > 2000 {
+		req.Message = string(runes[:2000])
+	}
+
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("LLM_API_KEY")
@@ -93,7 +99,10 @@ func (h *AssistantHandler) Chat(w http.ResponseWriter, r *http.Request) {
 			model = "nvidia/nemotron-3.5-lightning:free"
 		}
 
-		reply, err := h.callLLM(apiKey, baseURL, model, req.Message, req.Context)
+		ctxTimeout, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+		defer cancel()
+
+		reply, err := h.callLLM(ctxTimeout, apiKey, baseURL, model, req.Message, req.Context)
 		if err != nil {
 			fmt.Printf("[Assistant LLM Error]: %v\n", err)
 		}
@@ -116,21 +125,21 @@ func (h *AssistantHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AssistantHandler) callLLM(apiKey, baseURL, model, userMessage string, ctx *AssistantContext) (string, error) {
+func (h *AssistantHandler) callLLM(ctx context.Context, apiKey, baseURL, model, userMessage string, assistantCtx *AssistantContext) (string, error) {
 	messages := []map[string]string{
 		{"role": "system", "content": defaultSystemPrompt},
 	}
 
-	if ctx != nil {
-		contextStr := fmt.Sprintf("Контекст текущей заявки: ИНН %s, статус %s, запрошено %.0f ₽", ctx.INN, ctx.Status, ctx.RequestedAmount)
-		if ctx.CounterOfferAmount > 0 {
-			contextStr += fmt.Sprintf(", контр-оффер %.0f ₽", ctx.CounterOfferAmount)
+	if assistantCtx != nil {
+		contextStr := fmt.Sprintf("Контекст текущей заявки: ИНН %s, статус %s, запрошено %.0f ₽", assistantCtx.INN, assistantCtx.Status, assistantCtx.RequestedAmount)
+		if assistantCtx.CounterOfferAmount > 0 {
+			contextStr += fmt.Sprintf(", контр-оффер %.0f ₽", assistantCtx.CounterOfferAmount)
 		}
-		if ctx.AnnualRevenue > 0 {
-			contextStr += fmt.Sprintf(", годовая выручка %.0f ₽", ctx.AnnualRevenue)
+		if assistantCtx.AnnualRevenue > 0 {
+			contextStr += fmt.Sprintf(", годовая выручка %.0f ₽", assistantCtx.AnnualRevenue)
 		}
-		if ctx.RejectReason != "" {
-			contextStr += fmt.Sprintf(", причина отказа: %s", ctx.RejectReason)
+		if assistantCtx.RejectReason != "" {
+			contextStr += fmt.Sprintf(", причина отказа: %s", assistantCtx.RejectReason)
 		}
 		messages = append(messages, map[string]string{
 			"role":    "system",
@@ -157,7 +166,7 @@ func (h *AssistantHandler) callLLM(apiKey, baseURL, model, userMessage string, c
 	}
 
 	reqURL := baseURL + "/chat/completions"
-	httpReq, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewBuffer(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return "", err
 	}
@@ -200,14 +209,20 @@ func (h *AssistantHandler) callLLM(apiKey, baseURL, model, userMessage string, c
 func (h *AssistantHandler) generateExpertFallback(query string, ctx *AssistantContext) string {
 	q := strings.ToLower(query)
 
-	if strings.Contains(q, "контр-оффер") || strings.Contains(q, "снизили") || strings.Contains(q, "меньше") || strings.Contains(q, "уменьшили") {
+	if strings.Contains(q, "привет") || strings.Contains(q, "здравствуй") || strings.Contains(q, "добрый день") {
+		return "Здравствуйте! Я финансовый ассистент Альфа-Банка. Помогу разобраться с условиями кредитования («Оборотный кредит» до 10 млн ₽, «Овердрафт» до 3 млн ₽), расчётом лимитов и статусом вашей заявки. Чем могу помочь?"
+	}
+
+	if strings.Contains(q, "контр-оффер") || strings.Contains(q, "снизили") || strings.Contains(q, "меньше") || strings.Contains(q, "уменьшили") ||
+		((strings.Contains(q, "почему") || strings.Contains(q, "поясни") || strings.Contains(q, "что за")) && ctx != nil && (ctx.Status == "COUNTER_OFFERED" || ctx.CounterOfferAmount > 0)) {
 		if ctx != nil && ctx.CounterOfferAmount > 0 && ctx.AnnualRevenue > 0 {
 			return fmt.Sprintf("Банк скорректировал сумму до %.0f ₽ для защиты бизнеса от кассового разрыва. По риск-политике Альфа-Банка ежегодный платёж не должен превышать 35%% от выручки (при вашей выручке %.0f ₽). По мере роста оборотов доступный лимит будет автоматически увеличен.", ctx.CounterOfferAmount, ctx.AnnualRevenue)
 		}
 		return "Банк скорректировал сумму кредита, чтобы ежемесячные платежи оставались комфортными для бизнеса и не превышали безопасный порог долговой нагрузки (PTI до 35% от выручки). Это защищает компанию от риска кассового разрыва. По мере роста выручки доступный лимит будет автоматически увеличен."
 	}
 
-	if strings.Contains(q, "отказ") || strings.Contains(q, "почему отказали") || strings.Contains(q, "причина") {
+	if strings.Contains(q, "отказ") || strings.Contains(q, "почему отказали") || strings.Contains(q, "причина") ||
+		((strings.Contains(q, "почему") || strings.Contains(q, "поясни")) && ctx != nil && ctx.Status == "REJECTED") {
 		if ctx != nil && ctx.RejectReason != "" {
 			return fmt.Sprintf("Причина решения конвейера: «%s». Рекомендуем актуализировать данные в реестрах ФНС и БКИ, устранить факторы риска и подать повторную заявку через 3 месяца.", ctx.RejectReason)
 		}
@@ -222,7 +237,8 @@ func (h *AssistantHandler) generateExpertFallback(query string, ctx *AssistantCo
 		return "Чтобы увеличить кредитный лимит: 1) Переведите больше торговых оборотов на расчётный счёт в Альфа-Банке; 2) Закройте неиспользуемые кредитные линии в сторонних банках; 3) Прикрепите бухгалтерский баланс (Форма №1 и №2) для индивидуального пересмотра андеррайтером."
 	}
 
-	if strings.Contains(q, "документ") || strings.Contains(q, "баланс") || strings.Contains(q, "серая зона") {
+	if strings.Contains(q, "документ") || strings.Contains(q, "баланс") || strings.Contains(q, "серая зона") ||
+		(ctx != nil && ctx.Status == "WAITING_DOCUMENTS") {
 		return "В Серой зоне андеррайтеру требуются уточняющие данные. Достаточно загрузить скан бухгалтерского баланса за последний отчётный период или выписку по счёту за 6 месяцев (PDF или фото)."
 	}
 

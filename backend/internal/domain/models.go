@@ -224,11 +224,19 @@ const (
 )
 
 // UnderwriterDecisionRequest DTO решения андеррайтера (POST /api/v1/bank/applications/{id}/decision).
+type CounterOfferDecision struct {
+	Amount     float64  `json:"amount"`
+	TermMonths int      `json:"term_months"`
+	Rate       *float64 `json:"rate,omitempty"`
+	Reason     *string  `json:"reason,omitempty"`
+}
+
 type UnderwriterDecisionRequest struct {
-	Action                 DecisionAction `json:"action"`
-	Comment                *string        `json:"comment,omitempty"`
-	CounterOfferAmount     *float64       `json:"counter_offer_amount,omitempty"`
-	CounterOfferTermMonths *int           `json:"counter_offer_term_months,omitempty"`
+	Action                 DecisionAction        `json:"action"`
+	Comment                *string               `json:"comment,omitempty"`
+	CounterOfferAmount     *float64              `json:"counter_offer_amount,omitempty"`
+	CounterOfferTermMonths *int                  `json:"counter_offer_term_months,omitempty"`
+	CounterOffer           *CounterOfferDecision `json:"counter_offer,omitempty"`
 }
 
 // ApplicationUpdateFields поля обновления заявки при переходе статуса.

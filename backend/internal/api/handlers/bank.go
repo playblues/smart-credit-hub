@@ -183,6 +183,12 @@ func (h *BankHandler) Decision(w http.ResponseWriter, r *http.Request) {
 
 	case domain.ActionCounterOffer:
 		targetStatus = domain.StatusCounterOffered
+		if req.CounterOfferAmount == nil && req.CounterOffer != nil && req.CounterOffer.Amount > 0 {
+			req.CounterOfferAmount = &req.CounterOffer.Amount
+		}
+		if req.CounterOfferTermMonths == nil && req.CounterOffer != nil && req.CounterOffer.TermMonths > 0 {
+			req.CounterOfferTermMonths = &req.CounterOffer.TermMonths
+		}
 		if req.CounterOfferAmount == nil || *req.CounterOfferAmount <= 0 {
 			domain.RespondWithError(
 				w,
