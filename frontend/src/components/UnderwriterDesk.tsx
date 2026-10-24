@@ -228,8 +228,13 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
     setIsSubmitting(true);
 
     try {
-      const payload: any = { action: decisionAction, comment };
+      const payload: any = { 
+        action: decisionAction, 
+        comment: comment.trim() || undefined 
+      };
       if (decisionAction === 'COUNTER_OFFER') {
+        payload.counter_offer_amount = counterAmount;
+        payload.counter_offer_term_months = counterTerm;
         payload.counter_offer = {
           amount: counterAmount,
           term_months: counterTerm,
@@ -243,14 +248,13 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
           prev.map((a) => (a.id === backendUpdated.id ? backendUpdated : a))
         );
         onDecisionApplied(backendUpdated);
-        setIsSubmitting(false);
         setDecisionAction(null);
         setComment('');
         return;
       }
-    } catch {
-      // локальный фоллбек для демо
-    } finally {
+    } catch (err) {
+      // Оффлайн/демо фоллбек при недоступности бэкенда
+      console.warn('Backend decision endpoint failed or offline, applying optimistic fallback', err);
       let updatedStatus: any = 'APPROVED';
       if (decisionAction === 'REJECT') updatedStatus = 'REJECTED';
       if (decisionAction === 'REQUEST_DOCUMENTS') updatedStatus = 'WAITING_DOCUMENTS';
@@ -259,7 +263,7 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
       const updated: Application = {
         ...selectedApp,
         status: updatedStatus,
-        underwriter_comment: comment,
+        underwriter_comment: comment || undefined,
         approved_amount: decisionAction === 'APPROVE' ? selectedApp.requested_amount : undefined,
         counter_offer: decisionAction === 'COUNTER_OFFER' ? {
           amount: counterAmount,
@@ -273,9 +277,10 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
         prev.map((a) => (a.id === updated.id ? updated : a))
       );
       onDecisionApplied(updated);
-      setIsSubmitting(false);
       setDecisionAction(null);
       setComment('');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

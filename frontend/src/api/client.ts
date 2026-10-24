@@ -157,6 +157,8 @@ export const bankApi = {
     decision: {
       action: 'APPROVE' | 'REJECT' | 'REQUEST_DOCUMENTS' | 'COUNTER_OFFER';
       comment?: string;
+      counter_offer_amount?: number;
+      counter_offer_term_months?: number;
       counter_offer?: {
         amount: number;
         term_months: number;
