@@ -6,6 +6,8 @@
   - docs/scorecard_table.png (профессиональная таблица скоринговых баллов)
 """
 from pathlib import Path
+import argparse
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -183,12 +185,12 @@ def plot_scorecard_table(scorecard_df, docs_dir):
 # ---------------------------------------------------------------------------
 # 2. Основной пайплайн: метрики + 4 графика
 # ---------------------------------------------------------------------------
-def train_and_evaluate():
+def train_and_evaluate(custom_csv=None):
     base_dir = Path(__file__).parent
     docs_dir = base_dir.parent / "docs"
     docs_dir.mkdir(exist_ok=True)
 
-    csv_path = generate_if_needed()
+    csv_path = Path(custom_csv) if custom_csv else generate_if_needed()
     X, y, feature_cols = load_features(csv_path)
 
     # --- кросс-валидация (5 фолдов) ---
@@ -342,4 +344,7 @@ def train_and_evaluate():
     print("=" * 64)
 
 if __name__ == "__main__":
-    train_and_evaluate()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=str, default=None)
+    args = parser.parse_args()
+    train_and_evaluate(custom_csv=args.data)

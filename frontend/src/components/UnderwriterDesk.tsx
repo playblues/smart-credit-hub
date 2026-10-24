@@ -447,13 +447,13 @@ export const UnderwriterDesk: React.FC<UnderwriterDeskProps> = ({
               <div>
                 <span className="text-xs text-gray-500 block">Вероятность дефолта (PD):</span>
                 <span className="text-xl sm:text-2xl font-black text-gray-900">
-                  {((selectedApp.scoring_result?.pd || 0.13) * 100).toFixed(2)}%
+                  {selectedApp.scoring_result?.pd != null ? ((selectedApp.scoring_result.pd * 100).toFixed(2) + "%") : "-"}
                 </span>
               </div>
               <div>
                 <span className="text-xs text-gray-500 block">Скорбалл (0..1000):</span>
                 <span className="text-xl sm:text-2xl font-black text-gray-900">
-                  {selectedApp.scoring_result?.score || 870}
+                  {selectedApp.scoring_result?.score ?? "-"}
                 </span>
               </div>
             </div>
