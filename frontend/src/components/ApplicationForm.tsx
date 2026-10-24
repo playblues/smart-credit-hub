@@ -2,7 +2,18 @@ import React, { useState, useEffect } from 'react';
 import type { ProductType, Application } from '../api/client';
 import { fnsApi, applicationsApi } from '../api/client';
 import { DEMO_PROFILES } from '../mockData/demoProfiles';
-import { Building2, Check, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  Building2,
+  Check,
+  ArrowRight,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+  FileCheck2,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 
 interface ApplicationFormProps {
   initialInn?: string;
@@ -39,6 +50,7 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
     setInn(initialInn);
@@ -62,8 +74,26 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
           if (found) {
             setCompanyInfo({
               name: found.name,
-              annual_revenue: found.inn === '7701000001' ? 50000000 : found.inn === '7701000002' ? 8000000 : found.inn === '7701000003' ? 12000000 : found.inn === '7701000004' ? 20000000 : 200000000,
-              business_age_months: found.inn === '7701000001' ? 48 : found.inn === '7701000002' ? 18 : found.inn === '7701000003' ? 8 : found.inn === '7701000004' ? 36 : 60,
+              annual_revenue:
+                found.inn === '7701000001'
+                  ? 50000000
+                  : found.inn === '7701000002'
+                  ? 8000000
+                  : found.inn === '7701000003'
+                  ? 12000000
+                  : found.inn === '7701000004'
+                  ? 20000000
+                  : 200000000,
+              business_age_months:
+                found.inn === '7701000001'
+                  ? 48
+                  : found.inn === '7701000002'
+                  ? 18
+                  : found.inn === '7701000003'
+                  ? 8
+                  : found.inn === '7701000004'
+                  ? 36
+                  : 60,
               is_liquidating: false,
             });
           } else {
@@ -108,13 +138,15 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
         requested_amount: amount,
         requested_term_months: termMonths,
         created_at: new Date().toISOString(),
-        company_snapshot: companyInfo ? {
-          inn,
-          name: companyInfo.name,
-          annual_revenue: companyInfo.annual_revenue,
-          business_age_months: companyInfo.business_age_months,
-          is_liquidating: companyInfo.is_liquidating,
-        } : undefined,
+        company_snapshot: companyInfo
+          ? {
+              inn,
+              name: companyInfo.name,
+              annual_revenue: companyInfo.annual_revenue,
+              business_age_months: companyInfo.business_age_months,
+              is_liquidating: companyInfo.is_liquidating,
+            }
+          : undefined,
       };
       onApplicationCreated(mockCreated);
     } finally {
@@ -125,22 +157,54 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
   const maxAmount = productType === 'WORKING_CAPITAL' ? 10000000 : 3000000;
   const maxTerm = productType === 'WORKING_CAPITAL' ? 36 : 12;
 
+  const quickAmounts =
+    productType === 'WORKING_CAPITAL'
+      ? [1000000, 3000000, 5000000, 10000000]
+      : [500000, 1000000, 2000000, 3000000];
+
+  const quickTerms =
+    productType === 'WORKING_CAPITAL'
+      ? [6, 12, 18, 24, 36]
+      : [3, 6, 9, 12];
+
+  const faqs = [
+    {
+      q: 'Как быстро цифровой конвейер принимает решение?',
+      a: 'Скоринг работает в реальном времени: обогащение данных по ИНН через реестры ФНС и БКИ занимает от 30 до 60 секунд. При высоком скорбалле предодобрение выдаётся мгновенно.',
+    },
+    {
+      q: 'Нужен ли залог или сбор бумажных справок?',
+      a: 'Нет. Оборотный кредит и овердрафт до 10 млн ₽ предоставляются без залогового обеспечения. Все финансовые показатели бизнеса оцениваются автоматически по открытым реестрам.',
+    },
+    {
+      q: 'Как подписать кредитный договор?',
+      a: 'Подписание происходит полностью дистанционно с помощью простой электронной подписи (ПЭП) по СМС прямо в кабинете Альфа-Банка.',
+    },
+  ];
+
   return (
-    <div className="max-w-3xl mx-auto py-10 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6">
+      {/* Заголовок страницы в фирменном стиле Альфы */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-          Заявка на кредитование бизнеса
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-[#EF3124] text-xs font-bold mb-3 tracking-wide">
+          <Sparkles className="w-3.5 h-3.5" />
+          Цифровой кредитный конвейер МСП
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
+          Кредитование бизнеса онлайн
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Быстрое предодобрение решения в цифровом конвейере без бумажных справок
+        <p className="mt-2 text-sm sm:text-base text-gray-500 max-w-2xl">
+          Автоматическое решение по данным ФНС и БКИ за 1 минуту без бумажных справок и визита в банк
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8">
-        <form onSubmit={handleSubmit} className="space-y-7">
+      {/* Двухколоночный макет в стиле Alfa Design System */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Левая колонка: форма ввода параметров */}
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-200/90 p-6 sm:p-8 shadow-xs space-y-7">
           {/* 1. Выбор продукта */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
               1. Кредитный продукт
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -151,20 +215,24 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
                   if (amount > 10000000) setAmount(10000000);
                   if (termMonths > 36) setTermMonths(36);
                 }}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-4 rounded-2xl cursor-pointer transition-all ${
                   productType === 'WORKING_CAPITAL'
-                    ? 'border-[#EF3124] bg-white ring-1 ring-[#EF3124]'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                    ? 'border-2 border-[#EF3124] bg-red-50/20 shadow-xs'
+                    : 'border border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
                 <div className="flex justify-between items-baseline mb-1">
-                  <span className="font-semibold text-sm text-gray-900">Оборотный кредит</span>
-                  <span className="text-xs font-semibold text-gray-900">от 18.5%</span>
+                  <span className="font-bold text-sm text-gray-900">
+                    Оборотный кредит
+                  </span>
+                  <span className="text-xs font-extrabold text-[#EF3124] bg-red-50 px-2 py-0.5 rounded-md">
+                    от 18.5%
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Для закупки товаров, сырья и покрытия сезонных разрывов.
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                  Для закупки товаров, сырья и покрытия кассовых разрывов.
                 </p>
-                <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 flex justify-between">
+                <div className="text-[11px] font-medium text-gray-400 pt-2 border-t border-gray-100 flex justify-between">
                   <span>До 10 млн ₽</span>
                   <span>До 36 мес.</span>
                 </div>
@@ -177,20 +245,24 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
                   if (amount > 3000000) setAmount(3000000);
                   if (termMonths > 12) setTermMonths(12);
                 }}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-4 rounded-2xl cursor-pointer transition-all ${
                   productType === 'OVERDRAFT'
-                    ? 'border-[#EF3124] bg-white ring-1 ring-[#EF3124]'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                    ? 'border-2 border-[#EF3124] bg-red-50/20 shadow-xs'
+                    : 'border border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
                 <div className="flex justify-between items-baseline mb-1">
-                  <span className="font-semibold text-sm text-gray-900">Овердрафт для бизнеса</span>
-                  <span className="text-xs font-semibold text-gray-900">от 21.0%</span>
+                  <span className="font-bold text-sm text-gray-900">
+                    Овердрафт
+                  </span>
+                  <span className="text-xs font-extrabold text-[#EF3124] bg-red-50 px-2 py-0.5 rounded-md">
+                    от 21.0%
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Кредитный лимит к расчетному счету для непрерывных оплат.
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                  Кредитный лимит к счёту для непрерывных оплат поставщикам.
                 </p>
-                <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 flex justify-between">
+                <div className="text-[11px] font-medium text-gray-400 pt-2 border-t border-gray-100 flex justify-between">
                   <span>До 3 млн ₽</span>
                   <span>До 12 мес.</span>
                 </div>
@@ -198,10 +270,10 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
             </div>
           </div>
 
-          {/* 2. Данные компании (ИНН) */}
+          {/* 2. ИНН на мягкой подложке (фирменный стиль инпутов Альфы) */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400">
                 2. ИНН организации или ИП
               </label>
               {(inn || purpose) && (
@@ -213,63 +285,75 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
                     setCompanyInfo(null);
                     if (onResetToEmpty) onResetToEmpty();
                   }}
-                  className="text-[11px] text-[#EF3124] hover:underline font-medium"
+                  className="text-xs text-[#EF3124] hover:underline font-semibold"
                 >
-                  Очистить и ввести свои данные
+                  Очистить
                 </button>
               )}
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={inn}
-                onChange={(e) => setInn(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                placeholder="10 или 12 цифр ИНН"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#EF3124] focus:border-[#EF3124]"
-              />
-              <div className="absolute right-3 top-2.5">
-                {isSearchingFns && <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />}
+
+            <div className="bg-[#F2F3F5] rounded-2xl p-3.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#EF3124] focus-within:border-transparent transition-all">
+              <div className="flex items-center justify-between">
+                <input
+                  type="text"
+                  value={inn}
+                  onChange={(e) =>
+                    setInn(e.target.value.replace(/\D/g, '').slice(0, 12))
+                  }
+                  placeholder="Введите 10 или 12 цифр ИНН"
+                  className="w-full bg-transparent text-sm sm:text-base font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                />
+                {isSearchingFns && (
+                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin shrink-0 ml-2" />
+                )}
               </div>
             </div>
 
-            {/* Карточка ФНС — спокойная, без ярких фонов */}
+            {/* Плашка ФНС */}
             {companyInfo && (
-              <div className="mt-2.5 p-3.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-700">
+              <div className="mt-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs animate-fadeIn">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-gray-500" />
-                    {companyInfo.name}
+                  <div className="font-bold text-gray-900 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-gray-600" />
+                    <span>{companyInfo.name}</span>
                   </div>
-                  <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                  <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Check className="w-3 h-3" /> ФНС подтверждено
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px] text-gray-500">
+                <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 pt-1">
                   <div>
-                    Выручка: <span className="font-semibold text-gray-800">{companyInfo.annual_revenue.toLocaleString('ru-RU')} ₽</span>
+                    Выручка: <span className="font-bold text-gray-900 block sm:inline">{companyInfo.annual_revenue.toLocaleString('ru-RU')} ₽</span>
                   </div>
                   <div>
-                    Стаж: <span className="font-semibold text-gray-800">{companyInfo.business_age_months} мес.</span>
+                    Стаж бизнеса: <span className="font-bold text-gray-900 block sm:inline">{companyInfo.business_age_months} мес.</span>
                   </div>
                   <div>
-                    Статус: <span className="font-semibold text-gray-800">{companyInfo.is_liquidating ? 'Ликвидация' : 'Действует'}</span>
+                    Статус: <span className="font-bold text-gray-900 block sm:inline">{companyInfo.is_liquidating ? 'Ликвидация' : 'Действует'}</span>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Плашка безопасности данных Альфа-Банка */}
+            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-gray-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
+              <span>Гарантия конфиденциальности и защиты банковской тайны</span>
+            </div>
           </div>
 
-          {/* 3. Параметры кредита */}
-          <div className="space-y-5 pt-3 border-t border-gray-100">
+          {/* 3. Сумма кредита с быстрыми чипсами (Pills) */}
+          <div className="space-y-4 pt-2 border-t border-gray-100">
             <div>
               <div className="flex justify-between items-baseline mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Сумма кредита
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  3. Сумма кредита
                 </label>
-                <span className="text-lg font-bold text-gray-900">
+                <span className="text-xl sm:text-2xl font-black text-gray-900">
                   {amount.toLocaleString('ru-RU')} ₽
                 </span>
               </div>
+
               <input
                 type="range"
                 min="300000"
@@ -277,23 +361,57 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
                 step="50000"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EF3124]"
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EF3124]"
               />
-              <div className="flex justify-between text-[11px] text-gray-400 mt-1">
-                <span>300 000 ₽</span>
-                <span>{maxAmount.toLocaleString('ru-RU')} ₽</span>
+
+              {/* Фирменные чипсы-кнопки Альфы для быстрого выбора */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {quickAmounts.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setAmount(q)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      amount === q
+                        ? 'bg-[#0B1F35] text-white shadow-xs'
+                        : 'bg-[#F2F3F5] text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {(q / 1000000).toLocaleString('ru-RU')} млн ₽
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div>
+            {/* 4. Срок кредита с быстрыми чипсами (Pills) */}
+            <div className="pt-2">
               <div className="flex justify-between items-baseline mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Срок кредита
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  4. Срок кредита
                 </label>
-                <span className="text-base font-bold text-gray-900">
+                <span className="text-lg sm:text-xl font-black text-gray-900">
                   {termMonths} мес.
                 </span>
               </div>
+
+              {/* Таблетки сроков в стиле калькулятора Альфа-Банка */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {quickTerms.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTermMonths(t)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      termMonths === t
+                        ? 'bg-[#0B1F35] text-white shadow-xs'
+                        : 'bg-[#F2F3F5] text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {t === 12 ? '1 год' : t === 24 ? '2 года' : t === 36 ? '3 года' : `${t} мес.`}
+                  </button>
+                ))}
+              </div>
+
               <input
                 type="range"
                 min="3"
@@ -301,61 +419,142 @@ export const ApplicationForm: React.FC<ApplicationFormProps> = ({
                 step="1"
                 value={termMonths}
                 onChange={(e) => setTermMonths(Number(e.target.value))}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EF3124]"
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#EF3124]"
               />
-              <div className="flex justify-between text-[11px] text-gray-400 mt-1">
-                <span>3 мес.</span>
-                <span>{maxTerm} мес.</span>
+            </div>
+
+            {/* Цель кредитования */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                Цель финансирования
+              </label>
+              <div className="bg-[#F2F3F5] rounded-xl p-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#EF3124] transition-all">
+                <input
+                  type="text"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  placeholder="Например: Закупка партии товаров, пополнение оборотных средств"
+                  className="w-full bg-transparent text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Правая колонка: стильная плашка «Предварительный расчёт» */}
+        <div className="lg:col-span-5 sticky top-20 space-y-4">
+          <div className="bg-white rounded-3xl border border-gray-200/90 p-6 sm:p-7 shadow-sm space-y-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#EF3124] block mb-1">
+                Предварительный расчёт
+              </span>
+              <div className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
+                ~ {monthlyPayment.toLocaleString('ru-RU')} ₽
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                в месяц аннуитетными платежами
+              </p>
+            </div>
+
+            {/* Параметры */}
+            <div className="space-y-3 py-4 border-y border-gray-100 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Сумма кредита:</span>
+                <span className="font-bold text-gray-900 text-sm">
+                  {amount.toLocaleString('ru-RU')} ₽
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Срок кредитования:</span>
+                <span className="font-bold text-gray-900 text-sm">
+                  {termMonths} мес.
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Базовая ставка:</span>
+                <span className="font-bold text-[#EF3124] text-sm">
+                  от {(rateAnnual * 100).toFixed(1)}%
+                </span>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                Цель финансирования
-              </label>
-              <input
-                type="text"
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                placeholder="Закупка товара, кассовый разрыв"
-                className="w-full px-3.5 py-2 rounded-lg border border-gray-300 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#EF3124] focus:border-[#EF3124]"
-              />
+            {/* Преимущества конвейера Альфы */}
+            <div className="space-y-2.5 text-xs text-gray-600">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Решение конвейера до 60 секунд</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Без сбора финансовой отчётности</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#EF3124] shrink-0" />
+                <span>Выдача на счёт день в день</span>
+              </div>
             </div>
-          </div>
 
-          {/* Плашка примерного платежа */}
-          <div className="p-3.5 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-between">
-            <span className="text-xs text-gray-500">Ориентировочный платёж:</span>
-            <span className="text-sm font-bold text-gray-900">
-              ~ {monthlyPayment.toLocaleString('ru-RU')} ₽ / мес
-            </span>
-          </div>
-
-          {submitError && (
-            <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">
-              {submitError}
-            </div>
-          )}
-
-          {/* Кнопка отправки */}
-          <button
-            type="submit"
-            disabled={isSubmitting || inn.length < 10}
-            className="w-full py-3.5 rounded-lg bg-[#EF3124] hover:bg-[#D82417] text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Обработка...
-              </>
-            ) : (
-              <>
-                Отправить заявку
-                <ArrowRight className="w-4 h-4" />
-              </>
+            {submitError && (
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium">
+                {submitError}
+              </div>
             )}
-          </button>
-        </form>
+
+            {/* Фирменная большая кнопка Альфа-Банка */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || inn.length < 10}
+              className="w-full py-4 rounded-2xl bg-[#EF3124] hover:bg-[#D82417] text-white font-black text-sm sm:text-base transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Обработка конвейером...
+                </>
+              ) : (
+                <>
+                  Получить решение онлайн
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <div className="text-[10px] text-gray-400 text-center leading-relaxed">
+              Нажимая кнопку, вы подтверждаете согласие на обработку данных и запрос сведений в БКИ
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Блок «Частые вопросы предпринимателей» в стиле аккордеона Альфы */}
+      <div className="mt-12 max-w-4xl">
+        <h2 className="text-xl sm:text-2xl font-black text-gray-900 mb-4 tracking-tight">
+          Частые вопросы по кредитованию бизнеса
+        </h2>
+        <div className="space-y-3">
+          {faqs.map((f, i) => (
+            <div
+              key={i}
+              onClick={() => setOpenFaq(openFaq === i ? null : i)}
+              className="bg-[#F2F3F5] hover:bg-gray-200/70 rounded-2xl p-4 sm:p-5 cursor-pointer transition-all"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-bold text-sm text-gray-900">{f.q}</span>
+                {openFaq === i ? (
+                  <ChevronUp className="w-4 h-4 text-gray-600 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-gray-600 shrink-0" />
+                )}
+              </div>
+              {openFaq === i && (
+                <p className="mt-3 text-xs sm:text-sm text-gray-600 leading-relaxed animate-fadeIn">
+                  {f.a}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
