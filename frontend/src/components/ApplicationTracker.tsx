@@ -1,3 +1,4 @@
+import { AlfaAssistantWidget } from './AlfaAssistantWidget';
 import React, { useState, useEffect } from 'react';
 import type { Application, ApplicationStatus } from '../api/client';
 import { applicationsApi } from '../api/client';
@@ -639,6 +640,8 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
           </button>
         </div>
       )}
+      {/* Блок Альфа-Ассистента (Explainable AI) */}
+      <AlfaAssistantWidget application={app} />
     </div>
   );
 };

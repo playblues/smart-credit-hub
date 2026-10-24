@@ -60,6 +60,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		clientActionsH = handlers.NewClientActionsHandler(appRepo, uploadDir)
 	}
 
+	assistantH := handlers.NewAssistantHandler()
 	bankH := deps.BankHandler
 	if bankH == nil {
 		bankH = handlers.NewBankHandler(appRepo, deps.ScoringModel)
@@ -91,6 +92,11 @@ func NewRouter(deps Dependencies) http.Handler {
 		// Публичные эндпоинты аутентификации
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/login", authH.Login)
+		})
+
+		// ИИ-ассистент Альфа-Банка (OpenRouter / Llama 3.3 / Expert Engine)
+		r.Route("/assistant", func(r chi.Router) {
+			r.Post("/chat", assistantH.Chat)
 		})
 
 		// Мок-эндпоинты внешних систем (ФНС и БКИ)
