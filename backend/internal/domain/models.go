@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 // Role определяет роль пользователя в кредитном конвейере.
 type Role string
@@ -31,8 +35,13 @@ type User struct {
 
 // CheckPassword проверяет совпадение переданного пароля с паролем пользователя.
 func (u *User) CheckPassword(plain string) bool {
-	if u.PasswordHash != "" && u.PasswordHash == plain {
-		return true
+	if u.PasswordHash != "" {
+		if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plain)); err == nil {
+			return true
+		}
+		if u.PasswordHash == plain {
+			return true
+		}
 	}
 	if u.Password != "" && u.Password == plain {
 		return true

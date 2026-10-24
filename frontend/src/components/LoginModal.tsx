@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authApi, type UserSession } from '../api/client';
 import { DEMO_PROFILES, type DemoProfile } from '../mockData/demoProfiles';
-import { X, Lock, User, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { X, Lock, User, AlertCircle, Loader2, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -18,43 +18,43 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [password, setPassword] = useState('demo123');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isServerOffline, setIsServerOffline] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleLoginOffline = (targetLogin?: string) => {
+    const l = targetLogin || login;
+    const found = DEMO_PROFILES.find((p) => p.login === l) || DEMO_PROFILES[0];
+    const session: UserSession = {
+      token: `mock-jwt-${found.login}`,
+      role: found.role,
+      inn: found.inn || null,
+      display_name: `${found.name} (Оффлайн)`,
+      login: found.login,
+    };
+    onSuccess(session);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsServerOffline(false);
     setLoading(true);
 
     try {
       const session = await authApi.login(login, password);
       onSuccess(session);
       onClose();
-    } catch {
-      // Надежный фоллбек, если бэк оффлайн
-      const found = DEMO_PROFILES.find((p) => p.login === login);
-      if (found) {
-        const session: UserSession = {
-          token: `mock-jwt-${found.login}`,
-          role: found.role,
-          inn: found.inn || null,
-          display_name: found.name,
-          login: found.login,
-        };
-        onSuccess(session);
-        onClose();
-      } else if (login.trim()) {
-        const session: UserSession = {
-          token: `mock-jwt-custom`,
-          role: login.includes('underwriter') ? 'UNDERWRITER' : 'CLIENT',
-          inn: '7701000001',
-          display_name: login,
-          login,
-        };
-        onSuccess(session);
-        onClose();
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        setError('Неверный логин или пароль');
+      } else if (err?.response?.data?.message) {
+        setError(err.response.data.message);
       } else {
-        setError('Пожалуйста, введите логин');
+        // Бэкенд физически недоступен (Network Error / контейнер остановлен)
+        setIsServerOffline(true);
+        setError('Сервер бэкенда недоступен. Вы можете войти в автономном демо-режиме.');
       }
     } finally {
       setLoading(false);
@@ -91,9 +91,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         {/* Форма */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+            <div
+              className={`p-3 rounded-xl border text-xs flex flex-col gap-2 ${
+                isServerOffline
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {isServerOffline ? (
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{error}</span>
+              </div>
+              {isServerOffline && (
+                <button
+                  type="button"
+                  onClick={() => handleLoginOffline()}
+                  className="mt-1 w-full py-1.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Войти в демо-режиме (оффлайн)
+                </button>
+              )}
             </div>
           )}
 
@@ -160,20 +182,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-3 rounded-xl bg-[#EF3124] hover:bg-[#D82417] text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                Войти в кабинет
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="flex flex-col gap-2 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-[#EF3124] hover:bg-[#D82417] text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  Войти в кабинет
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleLoginOffline()}
+              className="w-full py-2 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 bg-gray-50/50"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Войти в демо-режиме (оффлайн)
+            </button>
+          </div>
         </form>
       </div>
     </div>

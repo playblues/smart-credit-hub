@@ -32,8 +32,11 @@ services:
       JWT_EXPIRATION_HOURS: 24
       CASES_FILE_PATH: /app/scoring/testdata/cases.json
       CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,4 +56,6 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local

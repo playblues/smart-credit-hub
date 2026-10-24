@@ -25,3 +25,5 @@ scoring/.pytest_cache/
 scoring/venv/
 scoring/.venv/
 *.csv
+
+graphify-out/

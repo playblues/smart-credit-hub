@@ -109,7 +109,16 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
                 },
               };
             }
-            return { ...prev, status: 'AUTO_APPROVED', approved_amount: prev.requested_amount, approved_term_months: 12, interest_rate: 0.185 };
+            return {
+              ...prev,
+              status: 'REJECTED',
+              reject_reason_client: 'Организация с указанным ИНН не найдена в реестре ФНС',
+              scoring_result: {
+                risk_zone: 'RED',
+                stop_factor: 'fns_not_found',
+                factors_client: ['Организация с указанным ИНН не найдена в реестре ФНС'],
+              },
+            };
           }
           return prev;
         });

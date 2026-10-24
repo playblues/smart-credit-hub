@@ -95,7 +95,7 @@ export const DEMO_PROFILES: DemoProfile[] = [
     login: 'underwriter',
     name: 'Кредитный эксперт Альфа-Банка',
     inn: '',
-    scenarioTitle: 'Кабинет банка',
+    scenarioTitle: 'Кабинет андеррайтера',
     scenarioBadge: 'Кредитный эксперт',
     badgeVariant: 'purple',
     description: 'Очередь заявок, проверка факторов риска, запрос документов и принятие решений.',

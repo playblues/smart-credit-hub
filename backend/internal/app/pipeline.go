@@ -115,8 +115,11 @@ func (s *PipelineService) process(ctx context.Context, appID string) error {
 
 	// Запрос данных ФНС и БКИ
 	fnsComp, fnsErr := s.mockService.GetFNSByINN(ctx, app.INN)
-	if fnsErr != nil {
-		slog.Warn("Данные ФНС не найдены для ИНН", "inn", app.INN, "error", fnsErr)
+	if fnsErr != nil || fnsComp == nil {
+		slog.Warn("FNS data not found", "inn", app.INN)
+		failReason := "Организация с указанным ИНН не найдена в реестре ФНС"
+		_ = s.appRepo.UpdateStatus(ctx, nil, appID, domain.StatusSubmitted, domain.StatusRejected, "SYSTEM", &failReason, nil)
+		return fmt.Errorf("организация с ИНН %s не найдена в ФНС", app.INN)
 	}
 
 	bkiHist, bkiErr := s.mockService.GetBKIByINN(ctx, app.INN)
@@ -183,6 +186,10 @@ func (s *PipelineService) process(ctx context.Context, appID string) error {
 	if err != nil {
 		slog.Error("Ошибка обновления статуса на SCORING", "app_id", appID, "error", err)
 		return err
+	}
+
+	if s.stepDelay > 0 {
+		time.Sleep(s.stepDelay)
 	}
 
 	// ----------------------------------------------------
